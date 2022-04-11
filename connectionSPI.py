@@ -8,7 +8,7 @@ Created on Fri Feb 19 09:32:47 2021
 import serial
 import struct
 
-class CoachCommunication():
+class SpiProtocolAutonomousCar():
     def __init__(self, port, baudrate=9600):
         #self.sp = serial.Serial(port ,baudrate)
         return
@@ -16,12 +16,9 @@ class CoachCommunication():
     def __str__(self):
         return "Communication du coach\nPort: {}, BaudRate: {}".format(self.sp.port, self.sp.baudrate)
     
-    #***************Encodage des trames***************
-    #robotID: Numéro du robot qui doit lire le message (0 ou 1)
-    #charge: Commande de chargement du tir (0 ou 1)
-    #kick: Commande de tir (0 ou 1)
-    #dribble: Commande du dribbleur (Je sais pas trop ce qu'on mettra dedans mais pour l'instant c'est un entier entre 0 et 31)
-    #vTan, vNorm, vAng: Vitesses (float)
+    #***************Frame Encoding***************
+    #pwmPropulsion (int 2 Bytes) : Pwm propulsion value 
+    #pwmDirection (int 2 Bytes) : Pwm direction value 
     def encodeAndSendMessage(self, pwmPropulsion, pwmDirection):
         msg = b'\xFF'
         msg += pwmPropulsion.to_bytes(2, 'big')
@@ -32,7 +29,7 @@ class CoachCommunication():
         #self.sp.write(msg)
         for b in msg:
             print(b)
-        return msg
+        return
         
     def calculateChecksum(self, msg):
         checksum = 0
@@ -40,13 +37,13 @@ class CoachCommunication():
             checksum ^= b
         return checksum
         
-    def closeCoach(self):
+    def closeConnection(self):
         self.sp.close()
         return
     
 if __name__ == "__main__":
-    comm = CoachCommunication("COM10", 115200)
+    comm = SpiProtocolAutonomousCar("COM10", 115200)
     comm.encodeAndSendMessage(1500, 1150)
-    #comm.closeCoach()
+    #comm.closeConnection()
     
     
