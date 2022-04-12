@@ -19,7 +19,7 @@ class SpiProtocolAutonomousCar():
     #***************Frame Encoding***************
     #pwmPropulsion (int 2 Bytes) : Pwm propulsion value 
     #pwmDirection (int 2 Bytes) : Pwm direction value 
-    def encodeAndSendMessage(self, pwmPropulsion, pwmDirection):
+    def encodeMessage(self, pwmPropulsion, pwmDirection):
         msg = b'\xFF'
         msg += pwmPropulsion.to_bytes(2, 'big')
         msg += pwmDirection.to_bytes(2, 'big')
@@ -27,9 +27,9 @@ class SpiProtocolAutonomousCar():
         
         #Envoie de la trame
         #self.sp.write(msg)
-        for b in msg:
-            print(b)
-        return
+        #for b in msg:
+        #    print(b)
+        return msg
         
     def calculateChecksum(self, msg):
         checksum = 0
@@ -38,12 +38,12 @@ class SpiProtocolAutonomousCar():
         return checksum
         
     def closeConnection(self):
-        self.sp.close()
+        #self.sp.close()
         return
     
 if __name__ == "__main__":
     comm = SpiProtocolAutonomousCar("COM10", 115200)
-    comm.encodeAndSendMessage(1500, 1150)
+    #comm.encodeAndSendMessage(1500, 1150)
     #comm.closeConnection()
     
     
