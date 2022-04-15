@@ -1,0 +1,194 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2513
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 /* mbed Microcontroller Library\
+ * Copyright (c) 2019 ARM Limited\
+ * SPDX-License-Identifier: Apache-2.0\
+ */\
+\
+#include "mbed.h"\
+#include "platform/mbed_thread.h"\
+#include <string.h>\
+#include <PwmOut.h>\
+#include <SPISlave.h>\
+\
+\
+\
+\
+/*Liaison SPI avec RPI*/\
+\
+//SPISlave device(PB_5, PB_4, PB_3, PA_4); //mosi, miso, sclk, ssel pour F411RE\
+SPISlave device(PB_5, PB_4, PB_3, PA_4); //mosi, miso, sclk, ssel pour L432KC\
+\
+\
+/*PWM Moteur et Servo*/\
+PwmOut motor_pwm(D9);\
+PwmOut steer_pwm(D6);\
+Serial serial_pc(USBTX, USBRX);\
+\
+/*Liaison capteur optique*/\
+//InterruptIn capteur_axe(PA_0); //pour F411RE\
+InterruptIn capteur_axe(PA_4); //pour L432KC\
+Timer t;\
+Ticker flipper;\
+InterruptIn capteur_proxG(PA_0);\
+InterruptIn capteur_proxD(PA_3);\
+\
+\
+uint8_t back_capt = 0;\
+uint32_t back_capt_time;\
+uint32_t t_now;\
+uint32_t t_old;\
+uint32_t dt;\
+uint16_t vit_mes_now;\
+uint16_t vit_mes_old;\
+\
+/*FONCTIONS*/\
+\
+void fct_capteur_axe(void)\
+\{\
+    t_now = t.read_us();\
+    dt = t_now - t_old;\
+    \
+    vit_mes_now = 8235294/dt;//Convert into cm/s\
+    t_old = t_now;\
+\}\
+\
+void fct_capteur_prox(void)\
+\{\
+    back_capt = 1;\
+    back_capt_time = t.read();\
+    \
+\}\
+\
+void check(void)\
+\{   \
+    static uint32_t check_dt_now = 0;\
+    if (dt == check_dt_now)\{\
+        vit_mes_now = 0;\
+        \}\
+    check_dt_now = dt;\
+    vit_mes_old = vit_mes_now;\
+\}\
+\
+uint32_t steer_angle_2_pulse_width( int32_t steer_angle );\
+uint32_t motor_speed_2_pulse_width( int32_t motor_speed );\
+\
+\
+int main()\
+\{\
+    //-------------------------- PWM Control Set-up --------------------------//\
+    char carac_recu;\
+    char text[40];\
+    uint32_t steer_pulse_width = 2300;\
+    uint32_t motor_pulse_width = 1500;\
+    int32_t steer_angle = 0; //en \'b0 allant de -15\'b0 \'e0 +15\'b0\
+    int32_t motor_speed = 0; //allant de 0 \'e0 10\
+    uint32_t recep, recep1;\
+    \
+    \
+    /*Pour le servo HS 645MG : \
+        - angle = -15\'b0 max right <-- steer_pulse_width = 2560\
+        - angle = 0\'b0 <-- steer_pulse_width = 2300\
+        - angle = 15\'b0 max left <-- steer_pulse_width = 2050                   */\
+\
+    //--------------------------- Serial Set-up ------------------------------//\
+    serial_pc.baud(115200);\
+    serial_pc.printf("TER - VROOM VROOM : Initialisation \\n\\r");\
+    \
+    //----------------------------- SPI Set-up -------------------------------//\
+    device.frequency(1000000);\
+    device.format(32,0);\
+    motor_pwm.pulsewidth_us(motor_pulse_width);\
+    steer_pwm.pulsewidth_us(steer_pulse_width);\
+    \
+    //----------------- Speed measurement and check Set-up -------------------//\
+    t.start();\
+    capteur_axe.fall(&fct_capteur_axe);\
+    capteur_proxG.rise(&fct_capteur_prox);\
+    capteur_proxD.rise(&fct_capteur_prox);\
+    flipper.attach(&check, 0.1);\
+    \
+    while (true) \{\
+        \
+        if (t.read() > (back_capt_time +1))\
+        \{\
+            back_capt = 0;   \
+        \}\
+        \
+        if(device.receive())\
+        \{\
+            recep = device.read();\
+            device.reply(vit_mes_now);\
+            recep1 = device.read();\
+            device.reply(back_capt);\
+            \
+            \
+            if(recep < 117)\
+            \{\
+                motor_speed = recep;\
+            \}\
+            else if (recep > 117)\
+            \{\
+                steer_angle = recep - 140;    \
+            \}\
+\
+            \
+            if(recep1 < 117)\
+            \{\
+                motor_speed = recep1;\
+            \}\
+            else if (recep1 > 117)\
+            \{\
+                steer_angle = recep1 - 140;    \
+            \}\
+            \
+            printf("recep = %d motor_speed = %d  recep1 = %d  steering = %d \\n", recep, motor_speed, recep1, steer_angle);\
+            \
+            //serial_pc.printf("angle = %d speed = %d motor pulsewidth = %d\\n", steer_angle, motor_speed, motor_pulse_width);\
+            steer_pulse_width = steer_angle_2_pulse_width(steer_angle);\
+            steer_pwm.pulsewidth_us(steer_pulse_width);\
+            motor_pulse_width = motor_speed_2_pulse_width(motor_speed);\
+            motor_pwm.pulsewidth_us(motor_pulse_width);\
+            printf("motor_pulse_width = %d vit_mes_nom = %d  back_capt = %d \\n\\r", motor_pulse_width, vit_mes_now, back_capt);\
+        \}\
+    \}\
+\}\
+\
+\
+uint32_t steer_angle_2_pulse_width( int32_t steer_angle )\
+\{\
+    uint32_t steer_pulse_width;\
+    steer_pulse_width = (uint32_t)((2570-2030)/40 * steer_angle + 2300); \
+    return steer_pulse_width;\
+\}\
+\
+uint32_t motor_speed_2_pulse_width( int32_t motor_speed )\
+\{\
+    uint32_t motor_pulse_width;\
+    if (motor_speed >= 10) //FORWARD\
+    \{\
+        if (motor_speed == 115)\
+        \{\
+            motor_pulse_width = 1590;   \
+        \}\
+        else\
+        \{\
+            motor_pulse_width = (uint32_t)((1440-1480) * (motor_speed-10)/100 + 1480);\
+            //max forward speed pulsewidth = 1200\
+        \}\
+    \}\
+    else if (motor_speed < 10) //BACKWARD\
+    \{\
+         motor_pulse_width = (uint32_t)((1700-1590)/10 * motor_speed + 1590);\
+         //max backward speed pulsewidth = 1900\
+    \} \
+    \
+    return motor_pulse_width;\
+\}\
+\
+}
