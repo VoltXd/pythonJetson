@@ -7,6 +7,25 @@ from pynput import keyboard
 from rplidar import RPLidar
 import connectionSPI
 
+#Pour RIDA
+
+#1. Jsp si t'as fait marché le LIDAR, en tout cas faudra vérifier que la variable PORT_NAME(Ligne 31)
+#   ait la bonne valeure.
+
+#2. ligne 67 ca c'est vraiment pas sûr mais faudra peut-être régler correctement les valeurs de steering.
+#   Normalement si tu lance connectionSPI.py, tu pourras utiliser l'objet "comm" dans la console qui te
+#   permet de créer les trames, tu peux utiliser xfer2 pour les envoyer par spi, tu peux essayer un peu 
+#   toutes les valeurs de PWM.
+
+#3. L.82 j'ai mit une fonction de conversion des vitesses de kevin vers nos pwm, normalement elle est 
+#   correcte mais je l'ai pas testé.
+
+#4. L.101 je vois que kevin utilise une mesure de vitesse qui est renvoyé par le microcontroleur.
+#   on a la possibilité d'en mettre un mais je l'ai pas fait + j'ai pas fait le protocole qui envoie les 
+#   valeurs de vitesses, je pourrai le faire si on en a vraiment besoin.
+
+#5. Prions l'atome
+
 ''' SPI DEFINITION '''
 bus = 0
 device = 0
@@ -17,8 +36,11 @@ spi.open(bus, device)
 spi.max_speed_hz = 1000000
 spi.mode = 0
 
+''' Protocol class (would be better to put spi in the class but no time left)'''
+protocol = connectionSPI.SpiProtocolAutonomousCar()
+
 ''' LIDAR DEFINITION '''
-PORT_NAME = '/dev/ttyUSB0'
+PORT_NAME = '/dev/ttyUSB0'   #SI MARCHE PAS, A MODIFIER AVEC LE PORT SERIE DU LIDAR 
 
 lidar = RPLidar(PORT_NAME)
 
@@ -46,21 +68,48 @@ detection_angle_min = 45
 detection_angle_max = 90
 crash_time_limit = 0
 
+#Command max value
+motorSpeedMaxValue = 10
+steeringMaxValue = 15
+
+#Speed PWM values
+pwmSpeedZero = 1500
+pwmSpeedMax = 1000
+
+#Steering PWM values (!!!!!!!!!!!!!! A REGLER !!!!!!!!!!!!!!!!!!)
+#(!!!!!!!!!!!!!! A REGLER !!!!!!!!!!!!!!!!!!)
+#(!!!!!!!!!!!!!! A REGLER !!!!!!!!!!!!!!!!!!)
+#(!!!!!!!!!!!!!! A REGLER !!!!!!!!!!!!!!!!!!)
+#(!!!!!!!!!!!!!! A REGLER !!!!!!!!!!!!!!!!!!)
+#(!!!!!!!!!!!!!! A REGLER !!!!!!!!!!!!!!!!!!)
+#Si les valeurs ne sont pas exactement bonnes
+pwmSteerZero = 1150
+pwmSteerMax = 1000
+
 ''' FUNCTIONS '''
-def car_ctrl(steering, motor_speed):
+#Convert the speed and steering commands to pulse width duration in µs
+def convertCommandToPWM(steering, motor_speed):
+    speedPWM = int((pwmSpeedMax - pwmSpeedZero) * motor_speed / motorSpeedMaxValue + pwmSpeedZero)
+    steerPWM = int((pwmSteerMax - pwmSteerZero) * steering / steeringMaxValue + pwmSteerZero)
+    return (speedPWM, steerPWM)
     
+def car_ctrl(steering, motor_speed):
     #Commands limits
-    if motor_speed > 10:
-        motor_speed = 10
+    if motor_speed > motorSpeedMaxValue:
+        motor_speed = motorSpeedMaxValue
         
-    if steering > 15:
-        steering =15
-    elif steering < -15:
-        steering = -15
+    if steering > steeringMaxValue:
+        steering =steeringMaxValue
+    elif steering < -steeringMaxValue:
+        steering = -steeringMaxValue
+        
+    #convert to pwm command
+    PWMcommand = convertCommandToPWM(steering, motor_speed)
     
     #Sending commands 
-    to_send = [motor_speed, steering] 
-    reply = spi.xfer2(to_send)
+    #Currently no reply emitted by nucleo, the code may crash, or the speed measured may remain to zero...
+    msg = protocol.encodeMessage(PWMcommand[0], PWMcommand[1])
+    reply = spi.xfer2(msg)
     speed_meas = reply[1] + (reply[0] << 8)
     return speed_meas
 
@@ -247,8 +296,8 @@ def vroom():
     
 
 if __name__ == '__main__':
-    #vroom()        
-    protocol = SpiProtocolAutonomousCar("bite")
-    spi.xfer2(protocol.encodeMessage(1400, 1000))
+    vroom()        
+    
+    #spi.xfer2(protocol.encodeMessage(1400, 1000))
 
 
