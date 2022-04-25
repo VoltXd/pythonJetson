@@ -1,88 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sat Apr  9 19:37:46 2022
-
-@author: jamyl
+Control functions
+by Jamy Lafenetre, Rida Lali, Kevin Zhou
 """
+from vars import *
 import numpy as np
-from threading import Thread, Timer
-import time
-from queue import Queue
-from stable_baselines3 import SAC
-from rplidar import RPLidar
+
 import sim_to_real_library as s2r
-from pynput import keyboard
-import spidev
-from jamys_toolkit import lidar_formater, denormalize_action
+from sac_toolkit_client import lidar_formater, denormalize_action
 
-
-# _________ global variables ________________
-TIME = time.time()
-DECISION_PERIOD = 0.1  # seconds
-OBSERVATION_PERIOD = 0.1
-LAST_RUNNING_TIME = None # To check if the car is stuck
-CRASH_TIMER = 1  # seconds
-MODEL = SAC.load("/home/pi/Documents/vroom/Lidar_only")
-
-THROTTLE_SCALE_FORWARD = 100
-THROTTLE_SCALE_REVERSE = 9
-
-STEERING_SCALE = 30
-RECEIVED_MOTOR_SPEED = None
-
-# ________ States ______________
-STOP = 0
-DRIVING = 1
-EVASIVE_MANEUVER = 2
-INIT_EVASIVE_MANEUVER = 3
-
-STATE = STOP
-
-EVASIVE_MANEUVER_INIT_TIME = None # To control the init duration
-NEUTRAL_DELAY = 0.5 # in seconds. How long is the transition ?
-
-EVASIVE_MANEUVER_DURATION = 1 # in seconds. How long is the maneuver ?                                                                                                               
-EVASIVE_MANEUVER_START_TIME = None # to control the maneuver time
-BACK_OBSTACLE = False # whether or not an obstacle was detected in the back
-
-IS_STARTING = False # When true, is_car_crashed() will be ignored
-IS_STARTING_DURATION = 0.5
-IS_STARTING_INIT_TIME = None
-
-# _______________
-
-MEAN_STEERING = 0
-STEERING_MEAN_COEF = 1 # must be in ]0, 1]
-
-# ________ LIDAR DEFINITION _________________
-PORT_NAME = "/dev/ttyUSB0"
-
-LIDAR = RPLidar(PORT_NAME)
-
-
-def start_lidar():
-    try:
-        info = start_lidar()
-        print(info, type(info))
-    except:
-        start_lidar()
-
-
-health = LIDAR.get_health()
-print(health)
-
-ITERATOR = LIDAR.iter_scans()  # Getting scan (type = generator)
-OBSERVATION = None
-
-# ____________ SPI DEFINITION ____________
-BUS = 0
-DEVICE = 0
-
-SPI = spidev.SpiDev()
-SPI.open(BUS, DEVICE)
-
-SPI.max_speed_hz = 1000000
-SPI.mode = 0
+from spi_tools import *
+from lidar_tools import *
+import time
 
 # __________ Control functions _________________
 def is_car_stuck(received_motor_speed):
@@ -213,36 +142,7 @@ def scale_command(command):
     
     return scaled_command
 
-def send_SPI(scaled_command):
-    if scaled_command['neutral']:
-        to_send = [115, 0 + 140]
-    else:
-        # Commands limits
-        if scaled_command['reverse']:
-            motor_speed = int(sat(scaled_command['throttle'], xmin=0, xmax=9))
-        else:
-            motor_speed = int(sat(scaled_command['throttle'], xmin=0, xmax=100))
 
-        steering = int(sat(scaled_command['steering'], xmin=-20, xmax=20))
-
-        # Sending commands
-        if scaled_command['reverse']:
-            to_send = [motor_speed, steering + 140] # TODO
-        else:
-            to_send = [motor_speed + 10, steering + 140] #TODO
-
-            
-    reply = SPI.xfer2(to_send)
-    speed = reply[0]
-    back_obstacle = reply[1]
-    print("--back obstacle :", back_obstacle)
-    global RECEIVED_MOTOR_SPEED, BACK_OBSTACLE
-    RECEIVED_MOTOR_SPEED = speed # the reply is the measured motor speed
-    if back_obstacle == 1:
-        BACK_OBSTACLE = True
-    else:
-        BACK_OBSTACLE = False
-    BACK_OBSTACLE = False
 def push_action(command):
     if command['neutral']:
         send_SPI(command)
@@ -305,92 +205,3 @@ def fetch_observation():
 
 
     return OBSERVATION
-
-
-# ____________ MultiThreading stuff ____________________________
-
-def decision_making_thread(obs_q):
-    """ Choose an action based on observations
-
-    Parameters
-    ----------
-    obs_q : Queue
-        Queue containing the latest observation
-    action_q : Queue
-        Queue where the action will be passed
-
-    Returns
-    -------
-    None.
-
-    """
-    # Calling back the same thread for periodic decision making
-
-    Timer(DECISION_PERIOD, decision_making_thread, args=(obs_q,),).start()
-
-    # getting the latest observation
-    obs = obs_q.get()
-
-    # deciding
-    # print("Deciding", obs)
-    command = decision_making(obs)
-
-    # pushing action
-    push_action(command)
-
-
-def fetch_observation_thread(obs_q):
-    """ Fetch the observation to feed the observation queue
-
-    Parameters
-    ----------
-    obs_q : Queue
-        queue containing the observation
-
-    Returns
-    -------
-    None.
-    """
-    Timer(OBSERVATION_PERIOD, fetch_observation_thread, args=(obs_q,),).start()
-    obs = fetch_observation()
-    if obs_q.empty():  # Queue are FIFO. We are only using 1 element
-        obs_q.put(obs)
-
-
-def on_press(key):
-    global STATE
-    try:
-        if key.char == "p":  # pause"
-            STATE = STOP
-            print("PAUSE")
-
-        elif key.char == "s":  # start
-            global IS_STARTING, IS_STARTING_INIT_TIME
-            IS_STARTING = True
-            IS_STARTING_INIT_TIME = time.time()
-            STATE = DRIVING
-            print("STARTING...")
-
-    except AttributeError:
-        print("special key {0} pressed".format(key))
-
-
-# ______________ Thread initialisation and general stuffs _____________________
-def main():
-    # ______ Keyboard init ______________________
-    listener = keyboard.Listener(on_press=on_press)
-    listener.start()
-
-    # __________ Threads ___________________
-    obs_q = Queue()
-
-    decision_t = Thread(target=decision_making_thread, args=(obs_q,))
-    obs_t = Thread(target=fetch_observation_thread, args=(obs_q,))
-
-    decision_t.start()
-    obs_t.start()
-
-
-# _________ Starting main ______________________
-
-main()
