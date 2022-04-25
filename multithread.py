@@ -4,6 +4,8 @@ MultiThreading stuff
 by Jamy Lafenetre, Rida Lali, Pierre-Alexandre Peyronnet
 """
 from vars import *
+from threading import Thread, Timer
+
 from control import *
 
 # ____________ MultiThreading stuff ____________________________
