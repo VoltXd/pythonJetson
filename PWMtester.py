@@ -4,7 +4,7 @@ Created on Sat Apr 16 10:38:26 2022
 
 @author: Pierre-Alexandre
 """
-
+#TODO: protocol ajouter KP et KI
 from tkinter import *
 from tkinter import ttk
 import threading
