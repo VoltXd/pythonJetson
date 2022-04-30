@@ -152,8 +152,8 @@ direction.pack()
 direction.set(pwmDir)
 
 #Reset button
-resetButton = Button(root, command=reset, text='Reset').pack()
-    
+resetButton = Button(root, command=reset, text='Reset')
+resetButton.pack()
     
 #infinite loop
 root.mainloop()
