@@ -11,7 +11,7 @@ import threading
 import time
 import serial
 import serial.tools.list_ports
-import connectionSPI
+import protocol
 
 #boolean used to stop thread at the end
 programEnded = False
@@ -21,7 +21,7 @@ sp = serial.Serial()
 sp.baudrate = 115200
 
 #Protocol object declaration (class + file name suck)
-comm = connectionSPI.SpiProtocolAutonomousCar()
+comm = protocol.CarProtocol()
 
 #Default values
 pwmProp = 1500

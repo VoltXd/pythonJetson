@@ -7,7 +7,7 @@ Created on Fri Feb 19 09:32:47 2021
 
 import struct
 
-class SpiProtocolAutonomousCar():
+class CarProtocol():
     """Class used for communication protocol"""
     PROTOCOLS = ("PWM", "ASSERVISSEMENT")
     
@@ -110,7 +110,7 @@ class SpiProtocolAutonomousCar():
         return checksum
     
 if __name__ == "__main__":
-    comm = SpiProtocolAutonomousCar()
+    comm = CarProtocol()
     #comm.encodeAndSendMessage(1500, 1150)
     #comm.closeConnection()
     
