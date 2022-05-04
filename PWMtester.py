@@ -117,7 +117,7 @@ def threadSerialPort(serialPort, tkWindow, portCB):
         #Wait to avoid spam
         time.sleep(0.1)
 
-def slideProp(var):
+def slideProp(var_prop):
     """
     Function used when propulsion slider was moved.
     If a serial port is opened, send an order to change PWM.
@@ -133,12 +133,12 @@ def slideProp(var):
 
     """
     if sp.is_open:
-        pwmProp = propulsion.get()
+        pwmProp = var_prop
         pwmDir = direction.get()
         payload = (pwmProp, pwmDir)
         sp.write(comm.encodeMessage(payload))
     
-def slideDir(var):
+def slideDir(var_dir):
     """
     Function used when direction slider was moved.
     If a serial port is opened, send an order to change PWM.
@@ -154,7 +154,7 @@ def slideDir(var):
 
     """
     if sp.is_open:
-        pwmDir = direction.get()
+        pwmDir = var_dir
         pwmProp = propulsion.get()
         payload = (pwmProp, pwmDir)
         sp.write(comm.encodeMessage(payload))
