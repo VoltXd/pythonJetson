@@ -20,7 +20,7 @@ programEnded = False
 sp = serial.Serial()
 sp.baudrate = 115200
 
-#Protocol object declaration (class + file name suck)
+#Protocol object declaration
 comm = protocol.CarProtocol()
 
 #Default values
@@ -47,7 +47,7 @@ def threadUpdateTerminal(serialPort, tkTerminal, stringBuffer):
             stringBuffer += serialPort.read_all().decode("ASCII")
             if len(stringBuffer) > terminalBufferSize:
                 stringBuffer = stringBuffer[(len(stringBuffer) - terminalBufferSize):]
-            if bool(tkTerminal.winfo_exists()):
+            if not programEnded:
                 tkTerminal.delete(1.0, END)
                 tkTerminal.insert(END, stringBuffer)
         time.sleep(0.1)
@@ -93,7 +93,8 @@ def threadSerialPort(serialPort, tkWindow, portCB):
                 try:
                     serialPort.port = port
                     serialPort.open()
-                    tkWindow.title("PWM tester - connected [{}]".format(port))
+                    if not programEnded:
+                        tkWindow.title("PWM tester - connected [{}]".format(port))
                     portCB.set(port)
                 except serial.SerialException:
                     print("Unable to open port " + port)
@@ -104,13 +105,15 @@ def threadSerialPort(serialPort, tkWindow, portCB):
                 serialPort.close()
                 serialPort.port = port
                 serialPort.open()
-                tkWindow.title("PWM tester - connected [{}]".format(port))
+                if not programEnded:
+                    tkWindow.title("PWM tester - connected [{}]".format(port))
             except serial.SerialException:
                 print("Unable to open port " + port)
         #Else, if the connection has ended, close the port
         elif (serialPort.port not in comPortList):
             serialPort.close()
-            tkWindow.title("PWM tester - connexion pending")
+            if not programEnded:
+                tkWindow.title("PWM tester - connexion pending")
         #Wait to avoid spam
         time.sleep(0.1)
 
