@@ -27,6 +27,7 @@ comm = protocol.CarProtocol()
 pwmProp = 1500
 pwmDir = 1150
 speed0 = 0
+K0 = 1
 
 #Limit values
 propMax = 2000
@@ -35,6 +36,8 @@ dirMax = 1000
 dirMin = 1300
 speedMax = 8
 speedMin = 0
+Kmin = 0
+Kmax = 1000
 
 #Variable for Terminal
 terminalBufferSize = 128
@@ -133,7 +136,7 @@ def slideProp(var_prop):
 
     """
     if sp.is_open:
-        pwmProp = var_prop
+        pwmProp = propulsion.get()
         pwmDir = direction.get()
         payload = (pwmProp, pwmDir)
         sp.write(comm.encodeMessage(payload))
@@ -154,7 +157,7 @@ def slideDir(var_dir):
 
     """
     if sp.is_open:
-        pwmDir = var_dir
+        pwmDir = direction.get()
         pwmProp = propulsion.get()
         payload = (pwmProp, pwmDir)
         sp.write(comm.encodeMessage(payload))
@@ -170,10 +173,15 @@ def reset():
 
     """
     if comm.protocol == "PWM":
-        pwmProp = 1500
+        pwmProp = 1500    
+        pwmDir = 1150
     elif comm.protocol == "ASSERVISSEMENT":
         pwmProp = 0
-    pwmDir = 1150
+        pwmDir = 1150
+    elif comm.protocol == "PARAMETRES":
+        pwmProp = 1
+        pwmDir = 1
+    
     if sp.is_open:
         payload = (pwmProp, pwmDir)
         sp.write(comm.encodeMessage(payload))
@@ -199,15 +207,24 @@ def onProtocolChange(evt):
     if protocol == "PWM":
         propulsion.configure(to=propMax, from_=propMin, resolution=1, label='Propulsion')
         propulsion.set(pwmProp)
+        direction.configure(to=dirMax, from_=dirMin, resolution=1, label='Direction')
+        direction.set(pwmDir)
     elif protocol == "ASSERVISSEMENT":
         propulsion.configure(to=speedMax, from_=speedMin, resolution=0.001, label='Consigne de vitesse')
         propulsion.set(speed0)
+        direction.configure(to=dirMax, from_=dirMin, resolution=1, label='Direction')
+        direction.set(pwmDir)
+    elif protocol == "PARAMETRES":
+        propulsion.configure(to=Kmax, from_=Kmin, resolution=0.1, label="Kp")
+        propulsion.set(K0)
+        direction.configure(to=Kmax, from_=Kmin, resolution=0.1, label="Kp")
+        direction.set(K0)
     propulsion.pack()
 
     
 
 #Window size
-width = 700
+width = 750
 height = 350
 
 #Window Init.
@@ -264,7 +281,7 @@ protocolL = Label(fProtocol, text="Protocole", padx = 10, pady=10)
 protocolL.pack(anchor='nw')
 
 #Protocol combobox
-protocolCB = ttk.Combobox(fProtocol, state="readonly", values=["PWM", "ASSERVISSEMENT"])
+protocolCB = ttk.Combobox(fProtocol, state="readonly", values=["PWM", "ASSERVISSEMENT", "PARAMETRES"])
 protocolCB.set("PWM")
 protocolCB.bind("<<ComboboxSelected>>", onProtocolChange)
 protocolCB.pack(side=LEFT, anchor="nw")

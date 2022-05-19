@@ -9,7 +9,7 @@ import struct
 
 class CarProtocol():
     """Class used for communication protocol"""
-    PROTOCOLS = ("PWM", "ASSERVISSEMENT")
+    PROTOCOLS = {"PWM":0b10101010, "ASSERVISSEMENT":0b01010101, "PARAMETRES":0b10100101}
     
     def __init__(self, protocol='PWM'):
         """
@@ -49,21 +49,25 @@ class CarProtocol():
             The message to transmit.
 
         """
+        msg = b'\xFF'
+        msg += self.PROTOCOLS[self.protocol].to_bytes(1, "big")
         if self.protocol == "PWM":
             pwmPropulsion = payload[0]
             pwmDirection = payload[1]
-            msg = b'\xFF'
             msg += pwmPropulsion.to_bytes(2, 'big')
             msg += pwmDirection.to_bytes(2, 'big')
-            msg += self.calculateChecksum(msg).to_bytes(1, 'big')
         elif self.protocol == "ASSERVISSEMENT":
             speedCommand = payload[0]
             pwmDirection = payload[1]
-            msg = b'\xFF'
             msg += struct.pack('f', speedCommand)
             msg += pwmDirection.to_bytes(2, 'big')
-            msg += self.calculateChecksum(msg).to_bytes(1, 'big')            
-        
+        elif self.protocol == "PARAMETRES":
+            KP = payload[0]
+            KI = payload[1]
+            msg += struct.pack('f', KP)
+            msg += struct.pack('f', KI)
+        msg += self.calculateChecksum(msg).to_bytes(1, 'big')
+            
         #Envoie de la trame
         #self.sp.write(msg)
         #for b in msg:
