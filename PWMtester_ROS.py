@@ -122,7 +122,7 @@ leftHat_old = False
 vit_old = 0
 
 
-vit_max = 3
+vit_max = 5
 
 rospy.init_node('PWM_tester', anonymous=False)
 pub = rospy.Publisher('/payload',Payload,queue_size=5)
@@ -176,23 +176,23 @@ def threadDS4(comm1):
         if (leftHat and not(leftHat_old)):
             asservissement = not(asservissement)
             if asservissement:
-                comm.setProtocol("ASSERVISSEMENT")
+                comm1.setProtocol("ASSERVISSEMENT")
                 print('Mode asservi')
             else:
-                comm.setProtocol("PWM")
+                comm1.setProtocol("PWM")
                 print('Mode direct')
                 
         leftHat_old = leftHat
         
         
         R_JS = axis[AXIS_RIGHT_STICK_Y]
-        
+        vitesse = -vit_max*R_JS
         
         if asservissement:
-            vitesse = -vit_max*R_JS
+            
 
             if (vitesse<0 and vit_old >=0):
-                comm.setProtocol("PWM")
+                comm1.setProtocol("PWM")
                 backward = True
                 print('Mode direct, marche arrière')
                 pwmProp = 1500
@@ -205,7 +205,7 @@ def threadDS4(comm1):
                 time.sleep(0.2)
                 
             elif (vit_old<0 and vitesse>0):
-                    comm.setProtocol("ASSERVISSEMENT")
+                    comm1.setProtocol("ASSERVISSEMENT")
                     backward = False
                     print('Mode asservissement, marche avant')
                 
@@ -213,11 +213,11 @@ def threadDS4(comm1):
                 pwmProp_percent = 7.5-vitesse
                 pwmProp = int(pwmProp_percent*200)
                 
-                comm.setProtocol("PWM")
+                comm1.setProtocol("PWM")
                 send_payload((pwmProp,pwmDir))
                 
             else :
-                comm.setProtocol("ASSERVISSEMENT")
+                comm1.setProtocol("ASSERVISSEMENT")
                 send_payload((vitesse, pwmDir))
                 
             
@@ -225,7 +225,7 @@ def threadDS4(comm1):
             pwmProp_percent = 7.5-vitesse
             pwmProp = int(pwmProp_percent*200)
             
-            comm.setProtocol("PWM")
+            comm1.setProtocol("PWM")
             send_payload((pwmProp,pwmDir))
             
         vit_old = vitesse
@@ -338,6 +338,7 @@ def slideProp(var_prop):
     payload = (pwmProp, pwmDir)
     msg = Payload()
     msg.Protocol = comm.protocol
+    print(comm.protocol, payload)
     if comm.protocol == "PWM":
         
         msg.pwmProp = payload[0]
