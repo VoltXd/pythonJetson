@@ -11,7 +11,7 @@ class CarProtocol():
     """Class used for communication protocol"""
     PROTOCOLS = {"PWM":0b10101010, "ASSERVISSEMENT":0b01010101, "PARAMETRES":0b10100101}
     
-    def __init__(self, protocol='PWM'):
+    def __init__(self, protocol='PARAMETRES'):
         """
         
 
@@ -51,7 +51,9 @@ class CarProtocol():
         """
         msg = b'\xFF'
         msg += self.PROTOCOLS[self.protocol].to_bytes(1, "big")
+        # print(type(payload[0]),type(payload[1]))
         if self.protocol == "PWM":
+            
             pwmPropulsion = payload[0]
             pwmDirection = payload[1]
             msg += pwmPropulsion.to_bytes(2, 'big')
