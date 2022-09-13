@@ -2,6 +2,6 @@
  Programmes pour le pilotage ou le debug de voitures autonomes.
  
 ## Contributeurs :
- - [** Jamy Lafenetre **](https://github.com/Jamy-L) (Auteur principal)
+ - **[Jamy Lafenetre](https://github.com/Jamy-L)** (Auteur principal)
  - Kevin Zhou
- - Rida Lali
+ - [Rida Lali](https://github.com/tinylinux)
